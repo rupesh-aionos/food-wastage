@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import os
+import uuid
 from detector import detect
 
 app = Flask(__name__)
@@ -18,8 +19,10 @@ def health():
         "model_loaded": True
     }), 200
 
+
 @app.route("/detect", methods=["POST"])
 def detect_route():
+    file_path = None
     try:
         if "file" not in request.files:
             return jsonify({
@@ -28,7 +31,8 @@ def detect_route():
             }), 400
 
         file = request.files["file"]
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        ext = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
+        file_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}{ext}")
         file.save(file_path)
 
         detections = detect(file_path, CONF_THRESHOLD)
@@ -43,6 +47,10 @@ def detect_route():
             "success": False,
             "error": str(e)
         }), 500
+
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 
 if __name__ == "__main__":
